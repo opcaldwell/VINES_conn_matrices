@@ -4,6 +4,7 @@
 #SBATCH --time=01:00:00
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=16G
+#SBATCH --output=/gpfs1/pi/abrieant/ImagingData/scripts/post_proc/results/%x_%j.out
 
 SUBJ=####
 
