@@ -1,0 +1,14 @@
+#!/bin/bash
+#SBATCH --job-name=post_proc
+#SBATCH --partition=short
+#SBATCH --time=02:00:00
+#SBATCH --cpus-per-task=2
+#SBATCH --mem=16G
+
+SUBJ=3380
+
+source ~/venvs/post_proc/bin/activate 
+cd /gpfs1/pi/abrieant/ImagingData/scripts/post_proc
+
+python run_connectivity.py --subjects $SUBJ
+python fmri_qc.py --subjects $SUBJ
