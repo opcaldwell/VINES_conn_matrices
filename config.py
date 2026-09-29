@@ -55,8 +55,6 @@ DEFAULT_CONNECTIVITY_TYPES = ['full-corr']
 AVAILABLE_CONNECTIVITY_TYPES = ['full-corr', 'partial-corr', 'tangent',
                                 'covariance']
 
-CONNECTIVITY_OUTPUT_DIR = os.path.join(OUTPUT_DIR, "connectivity_matrices")
-
 SESSION_PREFIX = "ses-"
 REQUIRED_BOLD_SUFFIX = "_space-MNI152NLin2009cAsym_res-2_desc-preproc_bold.nii.gz"
 REQUIRED_CONFOUNDS_SUFFIX = "_desc-confounds_timeseries.tsv"
