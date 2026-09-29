@@ -16,13 +16,11 @@ import sys
 import glob
 import numpy as np
 import pandas as pd
-from nilearn import datasets, input_data, connectome
-from nilearn.maskers import NiftiMapsMasker, NiftiLabelsMasker
-import argparse
+from nilearn import datasets, connectome
+from nilearn.maskers import NiftiLabelsMasker
 import nibabel as nib
 import logging
 from datetime import datetime
-from pathlib import Path
 
 # Import configuration
 try:
@@ -55,39 +53,10 @@ class ConnectivityProcessor:
         self.connectivity_dir = CONNECTIVITY_OUTPUT_DIR
         os.makedirs(self.connectivity_dir, exist_ok=True)
         
-    def fetch_atlases(self, atlas_names):
-        """Fetches specified atlases from Nilearn datasets"""
-        atlases = {}
-        for atlas_name in atlas_names:
-            self.logger.info(f"Fetching data for atlas: {atlas_name}")
-            try:
-                if atlas_name == "harvard_oxford":
-                    atlas = datasets.fetch_atlas_harvard_oxford("cort-maxprob-thr25-2mm", symmetric_split=True)
-                    atlases[atlas_name] = (atlas.maps, atlas.labels[1:])
-                elif atlas_name == "difumo-256":
-                    atlas = datasets.fetch_atlas_difumo(dimension=256, resolution_mm=2, legacy_format=False)
-                    atlases[atlas_name] = (atlas.maps, atlas.labels)
-                elif atlas_name == "difumo-1024":
-                    atlas = datasets.fetch_atlas_difumo(dimension=1024, resolution_mm=2, legacy_format=False)
-                    atlases[atlas_name] = (atlas.maps, atlas.labels)
-                elif atlas_name == "aal":
-                    atlas = datasets.fetch_atlas_aal()
-                    atlases[atlas_name] = (atlas.maps, atlas.labels)
-                elif atlas_name == "schaefer-100":
-                    atlas = datasets.fetch_atlas_schaefer_2018(n_rois=100)
-                    atlases[atlas_name] = (atlas.maps, atlas.labels)
-                elif atlas_name == "schaefer-400":
-                    atlas = datasets.fetch_atlas_schaefer_2018(n_rois=400)
-                    atlases[atlas_name] = (atlas.maps, atlas.labels)
-                else:
-                    raise ValueError(f"Unsupported atlas: {atlas_name}")
-                    
-                self.logger.info(f"Successfully fetched {atlas_name}")
-            except Exception as e:
-                self.logger.error(f"Failed to fetch {atlas_name}: {e}")
-                continue
-                
-        return atlases
+    def fetch_atlases(self):
+        """Loads the atlas set in config.py"""
+        labels = list(range(1, ATLAS_NODES + 1))
+        return {ATLAS_NAME: (ATLAS_FILE, labels)}
 
     def _get_correlation(self, kind):
         """Convert correlation kind to nilearn format"""
@@ -102,24 +71,14 @@ class ConnectivityProcessor:
             raise ValueError(f"Unsupported correlation kind: {kind}")
         return correlation_map[kind]
 
-    def _get_masker(self, atlas_name, atlas_map):
+    def _get_masker(self, atlas_map):
         """Get appropriate masker for atlas type"""
-        if 'difumo' in atlas_name:
-            masker = NiftiMapsMasker(
-                maps_img=atlas_map, 
-                standardize="zscore",
-                memory_level=1,
-                verbose=0
-            )
-        else:
-            masker = NiftiLabelsMasker(
-                labels_img=atlas_map, 
-                standardize=True,
-                memory_level=1,
-                verbose=0
-            )
-        
-        return masker
+        return NiftiLabelsMasker(
+              labels_img=atlas_map,
+              standardize=True,
+              memory_level=1,
+              verbose=0
+          )
 
     def find_fmriprep_files(self, subject):
         """Find fMRIPrep output files for a subject (uses config-based structure handling)"""
@@ -131,39 +90,29 @@ class ConnectivityProcessor:
         bold_files = []
         confounds_files = []
         
-        if HANDLE_SESSIONS:
-            # Check for session-based structure
-            sessions = [d for d in os.listdir(subject_dir) 
-                       if d.startswith(SESSION_PREFIX) and os.path.isdir(os.path.join(subject_dir, d))]
-            
-            if sessions:
-                # Session-based structure
-                self.logger.info(f"Found session-based structure for {subject}: {sessions}")
-                for session in sessions:
-                    session_func_dir = os.path.join(subject_dir, session, "func")
-                    if os.path.exists(session_func_dir):
-                        bold_pattern = os.path.join(session_func_dir, f"*{REQUIRED_BOLD_SUFFIX}")
-                        confounds_pattern = os.path.join(session_func_dir, f"*{REQUIRED_CONFOUNDS_SUFFIX}")
-                        session_bold = glob.glob(bold_pattern)
-                        session_confounds = glob.glob(confounds_pattern)
-                        
-                        # Skip early filtering - let _pairs_by_session handle min_tp filtering during matching
-                        
-                        bold_files.extend(session_bold)
-                        confounds_files.extend(session_confounds)
-                        self.logger.info(f"Session {session}: {len(session_bold)} BOLD files, {len(session_confounds)} confound files")
-            else:
-                # Non-session-based structure
-                self.logger.info(f"Using non-session-based structure for {subject}")
-                func_dir = os.path.join(subject_dir, "func")
-                if os.path.exists(func_dir):
-                    bold_pattern = os.path.join(func_dir, f"*{REQUIRED_BOLD_SUFFIX}")
-                    confounds_pattern = os.path.join(func_dir, f"*{REQUIRED_CONFOUNDS_SUFFIX}")
-                    bold_files = glob.glob(bold_pattern)
-                    confounds_files = glob.glob(confounds_pattern)
+        # Check for session-based structure
+        sessions = [d for d in os.listdir(subject_dir) 
+                   if d.startswith(SESSION_PREFIX) and os.path.isdir(os.path.join(subject_dir, d))]
+        
+        if sessions:
+            # Session-based structure
+            self.logger.info(f"Found session-based structure for {subject}: {sessions}")
+            for session in sessions:
+                session_func_dir = os.path.join(subject_dir, session, "func")
+                if os.path.exists(session_func_dir):
+                    bold_pattern = os.path.join(session_func_dir, f"*{REQUIRED_BOLD_SUFFIX}")
+                    confounds_pattern = os.path.join(session_func_dir, f"*{REQUIRED_CONFOUNDS_SUFFIX}")
+                    session_bold = glob.glob(bold_pattern)
+                    session_confounds = glob.glob(confounds_pattern)
+                    
+                    # Skip early filtering - let _pairs_by_session handle min_tp filtering during matching
+                    
+                    bold_files.extend(session_bold)
+                    confounds_files.extend(session_confounds)
+                    self.logger.info(f"Session {session}: {len(session_bold)} BOLD files, {len(session_confounds)} confound files")
         else:
-            # Force non-session-based structure
-            self.logger.info(f"Using non-session-based structure for {subject} (HANDLE_SESSIONS=False)")
+            # Non-session-based structure
+            self.logger.info(f"Using non-session-based structure for {subject}")
             func_dir = os.path.join(subject_dir, "func")
             if os.path.exists(func_dir):
                 bold_pattern = os.path.join(func_dir, f"*{REQUIRED_BOLD_SUFFIX}")
@@ -178,55 +127,6 @@ class ConnectivityProcessor:
             
         self.logger.info(f"Found {len(bold_files)} BOLD files and {len(confounds_files)} confound files for {subject}")
         return bold_files, confounds_files
-
-    def _filter_by_time_points(self, file_list, file_type, min_time_points):
-        """Filter files by minimum time points requirement"""
-        filtered_files = []
-        for file_path in file_list:
-            try:
-                if file_type == "BOLD":
-                    img = nib.load(file_path)
-                    num_time_points = img.shape[3] if len(img.shape) == 4 else 0
-                else:  # confounds
-                    confounds = pd.read_csv(file_path, delimiter="\t")
-                    num_time_points = len(confounds)
-                
-                if num_time_points >= min_time_points:
-                    filtered_files.append(file_path)
-                else:
-                    self.logger.warning(f"Skipping {file_path}: {num_time_points} < {min_time_points} time points")
-            except Exception as e:
-                self.logger.warning(f"Could not read {file_path}: {e}")
-        
-        return filtered_files
-
-    def _get_largest_file(self, file_list, file_type="BOLD"):
-        """Get file with most time points"""
-        largest_file = None
-        largest_size = 0
-        
-        for file_path in file_list:
-            try:
-                if file_type == "BOLD":
-                    img = nib.load(file_path)
-                    num_time_points = img.shape[3] if len(img.shape) == 4 else 0
-                else:  # Confounds
-                    confounds = pd.read_csv(file_path, delimiter="\t")
-                    num_time_points = len(confounds)
-                    
-                if num_time_points > largest_size:
-                    largest_size = num_time_points
-                    largest_file = file_path
-                    
-            except Exception as e:
-                self.logger.warning(f"Could not read {file_path}: {e}")
-                continue
-                
-        if largest_file:
-            self.logger.info(f"Selected {file_type} file with {largest_size} time points: {os.path.basename(largest_file)}")
-            return largest_file
-        else:
-            raise Exception(f"No suitable {file_type} file found")
 
     def _pairs_by_session(self, subject, bold_files, confounds_files, min_tp=MIN_TIME_POINTS):
         """
@@ -337,7 +237,7 @@ class ConnectivityProcessor:
                     self.logger.info(f"Processing {subject} session {sess} with {atlas_name} atlas")
                     
                     try:
-                        masker = self._get_masker(atlas_name, atlas_map)
+                        masker = self._get_masker(atlas_map)
                         ts = masker.fit_transform(best["bold"], confounds=conf_arr)
                         
                         self.logger.info(f"Extracted time series: {ts.shape}")
@@ -394,75 +294,6 @@ class ConnectivityProcessor:
             self.logger.error(f"Failed to process connectivity for {subject}: {e}")
             return False
 
-def main():
-    parser = argparse.ArgumentParser(description='Generate connectivity matrices from fMRIPrep outputs')
-    parser.add_argument('--subjects', nargs='+', help='List of subject IDs to process')
-    parser.add_argument('--subjects-file', help='File containing subject IDs (one per line)')
-    parser.add_argument('--atlases', nargs='+', 
-                       default=DEFAULT_ATLASES, 
-                       choices=AVAILABLE_ATLASES,
-                       help='Atlas names for parcellation')
-    parser.add_argument('--confounds', nargs='+', 
-                       default=DEFAULT_CONFOUNDS,
-                       help='Confound regressors to remove')
-    parser.add_argument('--corr-kinds', nargs='+', 
-                       default=DEFAULT_CONNECTIVITY_TYPES,
-                       choices=AVAILABLE_CONNECTIVITY_TYPES,
-                       help='Types of connectivity matrices')
-    parser.add_argument('--parallel', action='store_true',
-                       help='Process subjects in parallel')
-    
-    args = parser.parse_args()
-    
-    # Initialize processor
-    processor = ConnectivityProcessor()
-    
-    # Get subject list
-    if args.subjects:
-        subjects = [s.replace('sub-', '') for s in args.subjects]  # Remove sub- prefix if present
-    elif args.subjects_file:
-        with open(args.subjects_file, 'r') as f:
-            subjects = [line.strip().replace('sub-', '') for line in f if line.strip()]
-    else:
-        # Use subjects from config file
-        with open(SUBJECTS_FILE, 'r') as f:
-            subjects = [line.strip().replace('sub-', '') for line in f if line.strip()]
-    
-    processor.logger.info(f"Processing {len(subjects)} subjects")
-    
-    # Fetch atlases
-    atlases = processor.fetch_atlases(args.atlases)
-    if not atlases:
-        processor.logger.error("No atlases could be fetched")
-        sys.exit(1)
-    
-    # Process subjects
-    successful = 0
-    failed = 0
-    
-    if args.parallel:
-        # TODO: Implement parallel processing
-        processor.logger.info("Parallel processing not yet implemented, using sequential")
-    
-    for subject in subjects:
-        processor.logger.info(f"Processing subject {subject}")
-        try:
-            success = processor.process_subject_connectivity(subject, atlases, args.confounds, args.corr_kinds)
-            if success:
-                successful += 1
-            else:
-                failed += 1
-        except Exception as e:
-            processor.logger.error(f"Error processing {subject}: {e}")
-            failed += 1
-    
-    processor.logger.info(f"Connectivity processing completed: {successful} successful, {failed} failed")
-
-if __name__ == '__main__':
-    main()
-
-
-
 def create_connectivity_visualization(matrix_file, output_dir, atlas_name, connectivity_type, subject):
     """Create visualization for a connectivity matrix"""
     try:
@@ -474,7 +305,6 @@ def create_connectivity_visualization(matrix_file, output_dir, atlas_name, conne
         # Load connectivity matrix
         connectivity_df = pd.read_csv(matrix_file, index_col=0)
         connectivity_matrix = connectivity_df.values
-        labels = connectivity_df.columns.tolist()
         
         # Create figure with subplots (1x2 layout)
         fig, axes = plt.subplots(1, 2, figsize=(16, 7))
@@ -526,11 +356,11 @@ Weak (<0.1): {np.sum(connectivity_values < 0.1)} ({100*np.sum(connectivity_value
         plt.savefig(output_file, dpi=300, bbox_inches='tight')
         plt.close()
         
-        print(f"✅ Saved visualization: {output_file}")
+        print(f" Saved visualization: {output_file}")
         return True
         
     except Exception as e:
-        print(f"❌ Error creating visualization: {e}")
+        print(f" Error creating visualization: {e}")
         return False
 
 def create_subject_visualizations(subject):
@@ -538,14 +368,14 @@ def create_subject_visualizations(subject):
     subject_dir = os.path.join(CONNECTIVITY_OUTPUT_DIR, f"sub-{subject}")
     
     if not os.path.exists(subject_dir):
-        print(f"❌ Subject directory not found: {subject_dir}")
+        print(f" Subject directory not found: {subject_dir}")
         return False
     
     # Find all connectivity matrix files
     matrix_files = [f for f in os.listdir(subject_dir) if f.endswith('_connectivity.csv')]
     
     if not matrix_files:
-        print(f"❌ No connectivity matrices found for {subject}")
+        print(f" No connectivity matrices found for {subject}")
         return False
     
     print(f"📊 Creating visualizations for {len(matrix_files)} connectivity matrices for {subject}")
@@ -561,14 +391,11 @@ def create_subject_visualizations(subject):
             atlas_name = parts[-3]
             connectivity_type = parts[-2]
             
-            print(f"  🎨 Creating visualization for {atlas_name} - {connectivity_type}")
+            print(f" Creating visualization for {atlas_name} - {connectivity_type}")
             
             if create_connectivity_visualization(matrix_path, subject_dir, atlas_name, 
                                                connectivity_type, subject):
                 success_count += 1
     
-    print(f"✅ Created {success_count}/{len(matrix_files)} visualizations for {subject}")
+    print(f" Created {success_count}/{len(matrix_files)} visualizations for {subject}")
     return success_count > 0
-
-if __name__ == '__main__':
-    main()
