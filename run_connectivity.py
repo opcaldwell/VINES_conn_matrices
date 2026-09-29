@@ -4,7 +4,8 @@ Standalone Connectivity Matrix Runner
 Run connectivity matrix generation independently or after fMRIPrep completion
 
 Author: Mohammad Hassan Abbasi
-Date: September 15, 2025
+Adapted for VINES study
+Date: September 15, 2025; September 29, 2026
 """
 
 import os
@@ -17,7 +18,6 @@ from datetime import datetime
 try:
     from config import *
     from connectivity_matrix import ConnectivityProcessor
-    from subject_manager import discover_subjects
 except ImportError as e:
     print(f"ERROR: Could not import required modules: {e}")
     sys.exit(1)
@@ -84,10 +84,6 @@ def main():
                        help='File containing subject IDs (one per line)')
     parser.add_argument('--all-completed', action='store_true',
                        help='Process all subjects with completed fMRIPrep outputs')
-    parser.add_argument('--atlases', nargs='+', 
-                       default=DEFAULT_ATLASES,
-                       choices=AVAILABLE_ATLASES,
-                       help='Atlas names for parcellation')
     parser.add_argument('--confounds', nargs='+', 
                        default=DEFAULT_CONFOUNDS,
                        help='Confound regressors to remove')
@@ -134,14 +130,13 @@ def main():
         sys.exit(1)
         
     logger.info(f"Processing connectivity for {len(subjects)} subjects")
-    logger.info(f"Atlases: {args.atlases}")
     logger.info(f"Connectivity types: {args.corr_kinds}")
     
     # Initialize processor
     processor = ConnectivityProcessor()
     
     # Fetch atlases
-    atlases = processor.fetch_atlases(args.atlases)
+    atlases = processor.fetch_atlases()
     if not atlases:
         logger.error("Could not fetch any atlases")
         sys.exit(1)
