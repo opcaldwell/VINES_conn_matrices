@@ -137,9 +137,6 @@ def main():
     
     # Fetch atlases
     atlases = processor.fetch_atlases()
-    if not atlases:
-        logger.error("Could not fetch any atlases")
-        sys.exit(1)
     
     # Process subjects
     successful = 0
