@@ -6,7 +6,7 @@
 #SBATCH --mem=16G
 #SBATCH --output=/gpfs1/pi/abrieant/ImagingData/scripts/post_proc/results/%x_%j.out
 
-SUBJ=####
+SUBJ=3380
 
 source ~/venvs/post_proc/bin/activate
 cd /gpfs1/pi/abrieant/ImagingData/scripts/post_proc
