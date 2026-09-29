@@ -42,7 +42,7 @@ class FMRIQualityControl:
         self.qc_data = []
         
         # Ensure QC output directories exist
-        self.qc_output_dir = os.path.join(OUTPUT_DIR, "qc_reports")
+        self.qc_output_dir = QC_OUTPUT_DIR
         self.subjects_dir = os.path.join(self.qc_output_dir, "subjects")
         os.makedirs(self.qc_output_dir, exist_ok=True)
         os.makedirs(self.subjects_dir, exist_ok=True)
