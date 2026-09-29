@@ -23,11 +23,11 @@ DATASET_NAME = "VINES"
 # =============================================================================
 
 # Input/Output Paths--be sure to update output_dir with sub ####
-OUTPUT_DIR = "/gpfs1/pi/abrieant/ImagingData/sub-####" # fMRIPrep source directory
+OUTPUT_DIR = "/gpfs1/pi/abrieant/ImagingData/sub-3380" # fMRIPrep source directory
 RESULTS_DIR = "/gpfs1/pi/abrieant/ImagingData/scripts/post_proc/results"
 LOG_DIR = os.path.join(RESULTS_DIR, "logs")             # Log directory
 CONNECTIVITY_OUTPUT_DIR = os.path.join(RESULTS_DIR, "connectivity_matrices")
-QC_OUTPUT_DIR = os.path.join(RESULTS_DIR, "qc_reports", "sub-####")
+QC_OUTPUT_DIR = os.path.join(RESULTS_DIR, "qc_reports", "sub-3380")
 
 # =============================================================================
 # 3. LOGGING CONFIGURATION
