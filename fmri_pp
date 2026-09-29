@@ -5,7 +5,7 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=16G
 
-SUBJ=3380
+SUBJ=####
 
 source ~/venvs/post_proc/bin/activate 
 cd /gpfs1/pi/abrieant/ImagingData/scripts/post_proc
