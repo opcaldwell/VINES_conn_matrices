@@ -40,8 +40,7 @@ LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 # Just Shen 368 for the time being
 ATLAS_NAME = "Shen-368"
 # Move atlas file onto VACC in scripts subdir
-ATLAS_FILE =
-"/gpfs1/pi/abrieant/ImagingData/scripts/Shen_1mm_368_parcellation.nii.gz"
+ATLAS_FILE = "/gpfs1/pi/abrieant/ImagingData/scripts/Shen_1mm_368_parcellation.nii.gz"
 ATLAS_NODES = 368
 
 DEFAULT_CONFOUNDS = ["csf", "white_matter", "global_signal",
